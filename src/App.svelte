@@ -1,47 +1,64 @@
 <script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from '/vite.svg'
-  import Counter from './lib/Counter.svelte'
+  import EnsembleMatrix from './lib/EnsembleMatrix.svelte';
+  import LinearCombinationWidget from './lib/LinearCombinationWidget.svelte';
+  import ComponentClassifiers from './lib/ComponentClassifiers.svelte';
 </script>
 
-<main>
-  <div>
-    <a href="https://vite.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
+<main class="dashboard">
+  <section class="main-panel">
+    <EnsembleMatrix />
+  </section>
 
-  <div class="card">
-    <Counter />
-  </div>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
+  <aside class="sidebar">
+    <div class="widget-container">
+      <LinearCombinationWidget />
+    </div>
+    <div class="classifiers-container">
+      <ComponentClassifiers />
+    </div>
+  </aside>
 </main>
 
 <style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
+  :global(body) {
+    margin: 0;
+    font-family: sans-serif;
+    background-color: #f4f4f9;
   }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
+
+  .dashboard {
+    display: flex;
+    height: 100vh;
+    padding: 1rem;
+    gap: 1rem;
+    box-sizing: border-box;
   }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
+
+  .main-panel {
+    flex: 2; /* Takes 2/3 of the screen */
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 1rem;
+    overflow: auto;
   }
-  .read-the-docs {
-    color: #888;
+
+  .sidebar {
+    flex: 1; /* Takes 1/3 of the screen */
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .widget-container, .classifiers-container {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 1rem;
+  }
+
+  .classifiers-container {
+    flex-grow: 1; /* Takes remaining space in the sidebar */
+    overflow-y: auto;
   }
 </style>
