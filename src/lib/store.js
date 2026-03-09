@@ -1,51 +1,61 @@
 import { writable, derived } from 'svelte/store';
+import ensembleData from './data/ensemble_data.json';
 
-// Configuration constants
-export const MATRIX_SIZE = 3;
-export const NUM_CLASSIFIERS = 8;
-export const MAX_CELL_VALUE = 50;
+// Configuration constants derived from the real dataset
+export const MATRIX_SIZE = ensembleData.classes.length;        // 10 (digits 0–9)
+export const NUM_CLASSIFIERS = ensembleData.classifiers.length; // 4
 export const MAX_WEIGHT = 10;
 
-// Generate a random MATRIX_SIZE x MATRIX_SIZE confusion matrix
-const generateMockMatrix = () => {
-    return Array.from({ length: MATRIX_SIZE }, () =>
-        Array.from({ length: MATRIX_SIZE }, () => Math.floor(Math.random() * MAX_CELL_VALUE))
-    );
-};
+// Static reference data
+export const trueLabels = ensembleData.true_labels;
+export const classLabels = ensembleData.classes;
 
-// 1. Raw data: base classifiers with names and confusion matrices
+// 1. Base classifiers with real sklearn data
 export const baseClassifiers = writable(
-    Array.from({ length: NUM_CLASSIFIERS }, (_, i) => ({
+    ensembleData.classifiers.map((clf, i) => ({
         id: i,
-        name: `Classifier ${i + 1}`,
-        matrix: generateMockMatrix()
+        name: clf.name,
+        accuracy: clf.accuracy,
+        confusion_matrix: clf.confusion_matrix,
+        probabilities: clf.probabilities,
     }))
 );
 
-// 2. Current weights: initialized to 1 for all classifiers
+// 2. Weights: initialized equally for all classifiers
 export const classifierWeights = writable(
-    Object.fromEntries(Array.from({ length: NUM_CLASSIFIERS }, (_, i) => [i, 1]))
+    Object.fromEntries(ensembleData.classifiers.map((_, i) => [i, 1]))
 );
 
-// 3. Combined matrix: weighted average of all base classifier matrices
+// 3. Ensemble confusion matrix: derived from weighted probability vectors
+//    Formula: y_pred = argmax( sum_i( w_i * P_i(y|x) ) )
 export const ensembleMatrix = derived(
     [baseClassifiers, classifierWeights],
     ([$baseClassifiers, $classifierWeights]) => {
-        if ($baseClassifiers.length === 0) return [];
+        const nInstances = trueLabels.length;
+        const nClasses = classLabels.length;
+        const totalWeight = Object.values($classifierWeights).reduce((a, b) => a + b, 0) || 1;
 
-        // Initialize result matrix with zeros
-        let result = Array.from({ length: MATRIX_SIZE }, () => Array(MATRIX_SIZE).fill(0));
-        let totalWeight = Object.values($classifierWeights).reduce((a, b) => a + b, 0) || 1;
-
-        $baseClassifiers.forEach(cls => {
-            const weight = $classifierWeights[cls.id] ?? 0;
-            for (let i = 0; i < MATRIX_SIZE; i++) {
-                for (let j = 0; j < MATRIX_SIZE; j++) {
-                    result[i][j] += (cls.matrix[i][j] * weight) / totalWeight;
-                }
-            }
+        // Compute weighted average probability vector per instance, then argmax
+        const ensemblePreds = Array.from({ length: nInstances }, (_, inst) => {
+            const weightedProbs = Array(nClasses).fill(0);
+            $baseClassifiers.forEach(clf => {
+                const w = ($classifierWeights[clf.id] ?? 0) / totalWeight;
+                clf.probabilities[inst].forEach((p, c) => {
+                    weightedProbs[c] += w * p;
+                });
+            });
+            return weightedProbs.indexOf(Math.max(...weightedProbs));
         });
 
-        return result;
+        // Build confusion matrix: rows = true labels, cols = predicted labels
+        const cm = Array.from({ length: nClasses }, () => Array(nClasses).fill(0));
+        trueLabels.forEach((trueLabel, inst) => {
+            cm[trueLabel][ensemblePreds[inst]]++;
+        });
+
+        return cm;
     }
 );
+
+// 4. Partition lines: row indices (i) draw a line after row i, col indices (j) after col j
+export const partitionLines = writable({ rows: [], cols: [] });
